@@ -65,29 +65,83 @@ add_definition() {
 	printf "\n"
 }
 
+print_definitions() {
+	nl -w 1 -s ". " "$1"
+}
+
 delete_line() {
 	sed -i "${1}d" "$2"
 }
 
+is_empty_file() {
+	lines_count="$(get_lines_count "$1")"
+	if [ "$lines_count" = "0" ]; then
+		echo 1
+	else
+		echo 0
+	fi
+}
+
+create_file_if_not_exists() {
+	if [ ! -f "$1" ]; then
+		touch "$1"
+	fi
+}
+
 delete_definition() {
 	file_name="$1"
-	if [ ! -f "$file_name" ]; then
-		touch "$file_name"
-	fi
-	lines_count="$(get_lines_count "$file_name")"
-	if [ "$lines_count" = "0" ]; then
+	create_file_if_not_exists "$file_name"
+	if [ "$(is_empty_file "$file_name")" -eq 1 ]; then
 		printf "Please add a definition first!\n"
 	else
 		printf "Type the line number to delete or '0' to return\n"
-		nl -w 1 -s ". " "$file_name"
-
+		print_definitions "$file_name"
 		while true;
 		do
+			lines_count="$(get_lines_count "$1")"
 			read -r line_number
 			if [ "$line_number" -ge 1 ] && [ "$line_number" -le "$lines_count" ]; then
 				delete_line "$line_number" "$file_name"
 				break
 			elif [ "$line_number" -eq 0 ]; then
+				break
+			else
+				printf "Enter a valid line number!\n"
+			fi
+		done
+	fi
+	printf "\n"
+}
+
+convert() {
+	file_name=$1
+	create_file_if_not_exists "$file_name"
+	if [ "$(is_empty_file "$file_name")" -eq 1 ]; then
+		printf "Please add a definition first!\n"
+	else
+		printf "Type the line number to convert units or '0' to return\n"
+		print_definitions "$file_name"
+		while true;
+		do
+			lines_count="$(get_lines_count "$1")"
+			read -r line_number
+			if [ "$(is_number "$line_number")" -eq 1 ] && [ "$line_number" -ge 1 ] && [ "$line_number" -le "$lines_count" ]; then
+				printf "Enter a value to convert:\n"
+				while true;
+				do
+					read -r input
+					if [ "$(is_number "$input")" -eq 1 ]; then
+						line=$(sed "${line_number}!d" "$file_name")
+						constant=$(echo "$line" | cut -d " " -f 2)
+						result=$(bc <<< "$input*$constant")
+						printf "Result: %s\n" "$result"
+						break
+					else
+						printf "Enter a float or integer value!\n"
+					fi
+				done
+				break
+			elif [ "$(is_number "$line_number")" -eq 1 ] && [ "$line_number" -eq 0 ]; then
 				break
 			else
 				printf "Enter a valid line number!\n"
@@ -108,11 +162,11 @@ do
 			break
 			;;
 		"1")
-			printf "Not implemented!\n";;
+			convert definitions.txt;;
 		"2")
-			add_definition "definitions.txt";;
+			add_definition definitions.txt;;
 		"3")
-			delete_definition "definitions.txt";;
+			delete_definition definitions.txt;;
 		*)
 			printf "Invalid option!\n";;
 	esac
